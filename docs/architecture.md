@@ -43,26 +43,32 @@ This means the pipeline is self-regulating — no manual handoff needed.
 W1 — Job Scraper (8:00 AM)
 ↓ writes: Job Title, Company, Location, Description, Job Link
 ↓ sets:   Scoring Status = Pending
+
 W2 — AI Scorer (8:30 AM)
 ↓ reads:  Scoring Status = Pending
 ↓ writes: AI Score, AI Verdict, Score Breakdown
 ↓ sets:   Scoring Status = Scored
+
 W3 — Resume Tailor (9:00 AM)
 ↓ reads:  AI Verdict = Good Fit, Resume Status = Pending
 ↓ writes: Tailored Resume
 ↓ sets:   Resume Status = Tailored
+
 W4 — Cover Letter Generator (9:30 AM)
 ↓ reads:  Resume Status = Tailored, Cover Letter Status ≠ Ready
 ↓ writes: Cover Letter
 ↓ sets:   Cover Letter Status = Cover Letter Ready
+
 W5 — Recruiter Finder (10:00 AM)
 ↓ reads:  Cover Letter Status = Cover Letter Ready, Recruiter Email = empty
 ↓ writes: Recruiter Name, Recruiter Email, Recruiter Position
 ↓ sets:   Outreach Status = Ready
+
 W6 — Email Outreach (10:30 AM)
 ↓ reads:  Outreach Status = Ready
 ↓ writes: sends Gmail outreach
 ↓ sets:   Outreach Status = Email Sent, Outreach Date
+
 W7 — Follow-up Tracker (11:00 AM)
 ↓ reads:  Outreach Status = Email Sent, Outreach Date > 5 days ago
 ↓ writes: sends Gmail follow-up
