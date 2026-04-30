@@ -1,0 +1,358 @@
+{
+  "name": "W5-snov.io recruiter outreach automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d3ef5a4e-0073-4633-aa01-db88f4e634f8",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "3399bdd8-248c-80fb-be10-f701e8c3d55f",
+          "mode": "id"
+        },
+        "returnAll": true,
+        "simple": false,
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "key": "Cover Letter Status|status",
+              "condition": "equals",
+              "statusValue": "Cover Letter Ready"
+            },
+            {
+              "key": "Recruiter Email|rich_text",
+              "condition": "is_empty"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "23f7ab00-6029-47e1-b5dd-372597c7aaa0",
+      "name": "Get many database pages",
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n  const props = item.json.properties;\n\n  // --- Company ---\n  const company =\n    props[\"Company\"]?.rich_text?.[0]?.plain_text ||\n    props[\"Company\"]?.title?.[0]?.plain_text || '';\n\n  // --- Job Title ---\n  const jobTitle =\n    props[\"Job Title\"]?.title?.[0]?.plain_text ||\n    props[\"Job Title\"]?.rich_text?.[0]?.plain_text || '';\n\n  // --- Job Link ---\n  const jobLink = props[\"Job Link\"]?.url || '';\n\n  // --- Domain Extraction ---\n  // Step 1: Try direct URL parse (only works if it's NOT a Google search link)\n  let domain = '';\n  try {\n    if (jobLink && !jobLink.includes('google.com') && !jobLink.includes('linkedin.com')) {\n      const url = new URL(jobLink);\n      domain = url.hostname.replace(/^www\\./, '');\n    }\n  } catch (e) {}\n\n  // Step 2: If domain still empty, derive from company name\n  // Strips common suffixes, removes non-alphanumeric chars, appends .com\n  if (!domain && company) {\n    domain = company\n      .toLowerCase()\n      .replace(/\\s+(inc|ltd|llc|corp|co|plc|ag|gmbh|technologies|technology|tech|solutions|solution|services|systems|group|global|international|consulting|consultancy|network|networks)\\.?\\s*$/i, '')\n      .replace(/\\s+/g, '')        // remove internal spaces\n      .replace(/[^a-z0-9]/g, '')  // remove special chars\n      .trim() + '.com';\n  }\n\n  return {\n    json: {\n      pageId: item.json.id,\n      company: company,\n      jobTitle: jobTitle,\n      jobLink: jobLink,\n      domain: domain\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "6e351ed8-2e95-44be-9b79-784390f60f07",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.snov.io/v1/oauth/access_token",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"YOUR_SNOV_CLIENT_ID\",\n  \"client_secret\": \"YOUR_SNOV_CLIENT_SECRET\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "a99cda72-5885-4b4a-be6d-6385db2db25b",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map((item, i) => {\n  // Snov.io returns emails under item.json.emails (array)\n  const emails = item.json.emails || [];\n\n  // Pull pageId/company from Node 3\n  const upstream = $('Code in JavaScript').all()[i]?.json || {};\n\n  // HR/recruiting keyword filter\n  const hrKeywords = ['recruit', 'talent', 'hr', 'human resource', 'people', 'hiring', 'acquisition'];\n\n  const hrEmails = emails.filter(e => {\n    const pos = (e.position || '').toLowerCase();\n    return hrKeywords.some(k => pos.includes(k));\n  });\n\n  // Prefer HR emails; fall back to full list. Sort by confidence desc.\n  const candidates = hrEmails.length > 0 ? hrEmails : emails;\n  candidates.sort((a, b) => {\n    const order = { high: 3, medium: 2, low: 1 };\n    return (order[b.confidence] || 0) - (order[a.confidence] || 0);\n  });\n\n  const best = candidates[0];\n\n  return {\n    json: {\n      pageId: upstream.pageId,\n      company: upstream.company,\n      recruiter_found: !!(best?.email),\n      recruiter_name: best ? `${best.firstName || ''} ${best.lastName || ''}`.trim() : '',\n      recruiter_email: best?.email || '',\n      recruiter_position: best?.position || '',\n      confidence: best?.confidence || 'none'\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "994d7cae-e673-4e8b-a3a2-ab29ba71c483",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9123a43d-52ce-41cc-8a03-f40dcefc1529",
+              "leftValue": "={{ $json.recruiter_found }}",
+              "rightValue": "=true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "ba8be606-d40a-463e-a902-8d2cab16facb",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $json.pageId }}",
+          "mode": "id"
+        },
+        "simple": false,
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Recruiter Name|rich_text",
+              "richText": true,
+              "text": {
+                "text": [
+                  {
+                    "text": "={{ $json.recruiter_name }}",
+                    "annotationUi": {}
+                  }
+                ]
+              }
+            },
+            {
+              "key": "Recruiter Email|email",
+              "emailValue": "={{ $json.recruiter_email }}"
+            },
+            {
+              "key": "Recruiter Position|rich_text",
+              "richText": true,
+              "text": {
+                "text": [
+                  {
+                    "text": "={{ $json.recruiter_position }}",
+                    "annotationUi": {}
+                  }
+                ]
+              }
+            },
+            {
+              "key": "Outreach Status|status",
+              "statusValue": "Ready"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1568,
+        -96
+      ],
+      "id": "2ea4f269-8070-43d2-b4bb-b9be1f88ea9a",
+      "name": "Update a database page",
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        96
+      ],
+      "id": "3614ed97-228f-4dbf-81c7-30270f91ff4a",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "url": "https://api.snov.io/v2/domain-emails-with-info",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $('Code in JavaScript').item.json.domain }}"
+            },
+            {
+              "name": "type",
+              "value": "personal"
+            },
+            {
+              "name": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        896,
+        0
+      ],
+      "id": "f147234e-2302-488f-96c1-a1d29749fc1a",
+      "name": "HTTP Request1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many database pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many database pages": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update a database page",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "cad423ac-4d09-46e9-ad90-ac657daeb402",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fcb5b583f8243d143972c11d3c7fa9576cb9dcd125227be36f39751c260181b1"
+  },
+  "id": "oL7xAg53bcDknBSa",
+  "tags": []
+}

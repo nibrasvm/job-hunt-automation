@@ -1,0 +1,267 @@
+{
+  "name": "W4 - Cover Letter Generation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "94e5f889-b2bd-40e8-943a-bd7ffc382471",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "3399bdd8-248c-80fb-be10-f701e8c3d55f",
+          "mode": "list",
+          "cachedResultName": "Jobs",
+          "cachedResultUrl": "https://www.notion.so/3399bdd8248c80fbbe10f701e8c3d55f"
+        },
+        "returnAll": true,
+        "simple": false,
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "key": "AI Verdict|select",
+              "condition": "equals",
+              "selectValue": "Good Fit"
+            },
+            {
+              "key": "Resume Status|status",
+              "condition": "equals",
+              "statusValue": "Tailored"
+            },
+            {
+              "key": "Cover Letter Status|status",
+              "condition": "does_not_equal",
+              "statusValue": "Cover Letter Ready"
+            },
+            {
+              "key": "Tailored Resume|rich_text",
+              "condition": "is_not_empty"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "cdf4b317-736a-4256-adc2-9565cbf713a1",
+      "name": "Get many database pages",
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfunction clean(str) {\n  if (!str) return \"\";\n  return str\n    .replace(/[^\\x20-\\x7E]/g, \" \")  // Strip everything non-ASCII printable\n    .replace(/\\s+/g, \" \")            // Collapse multiple spaces\n    .trim();\n}\n\nfunction escapeForJson(str) {\n  return str\n    .replace(/\\\\/g, \"\\\\\\\\\")\n    .replace(/\"/g, '\\\\\"')\n    .replace(/\\n/g, \"\\\\n\")\n    .replace(/\\r/g, \"\\\\r\")\n    .replace(/\\t/g, \"\\\\t\");\n}\n\nfor (const item of items) {\n  const jobTitle = clean(item.json.properties[\"Job Title\"]?.title?.[0]?.plain_text);\n  const company = clean(item.json.properties[\"Company\"]?.rich_text?.[0]?.plain_text);\n  const location = clean(item.json.properties[\"Location\"]?.rich_text?.[0]?.plain_text);\n  const jobDesc = clean(item.json.properties[\"Job Description\"]?.rich_text?.[0]?.plain_text);\n  const tailoredResume = clean(item.json.properties[\"Tailored Resume\"]?.rich_text?.[0]?.plain_text);\n  const notionPageId = item.json.id;\n\n  const prompt = \"Write a professional, concise cover letter for the following job. \" +\n    \"Job Title: \" + jobTitle + \". \" +\n    \"Company: \" + company + \". \" +\n    \"Location: \" + location + \". \" +\n    \"Job Description: \" + jobDesc + \". \" +\n    \"Candidate Resume: \" + tailoredResume + \". \" +\n    \"Instructions: 3 paragraphs max. \" +\n    \"Opening: express genuine interest in the role and company. \" +\n    \"Middle: highlight 2-3 relevant skills from the resume that match the job. \" +\n    \"Closing: confident call to action. \" +\n    \"Tone: professional but human. \" +\n    \"Output the cover letter text only.\";\n\n  const escapedPrompt = escapeForJson(prompt);\n\n  const body = '{\"model\":\"claude-haiku-4-5-20251001\",\"max_tokens\":1024,\"messages\":[{\"role\":\"user\",\"content\":\"' + escapedPrompt + '\"}]}';\n\n  results.push({\n    json: {\n      notionPageId: notionPageId,\n      jobTitle: jobTitle,\n      company: company,\n      prompt: prompt\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "af3fb456-2034-429e-b558-a092615e4c45",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"max_tokens\": 1024,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"={{ $json.prompt }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "a8c2d597-8078-4794-aa82-0557eb583f7b",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "vYkaDZLWHO1lkrHj",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const httpItems = $input.all();\nconst promptItems = $('Code in JavaScript').all();\nconst results = [];\n\nfor (let i = 0; i < httpItems.length; i++) {\n  const httpItem = httpItems[i];\n  const promptItem = promptItems[i] || {};\n\n  let coverLetter = \"\";\n\n  try {\n    const content = httpItem.json.content;\n    if (content && content.length > 0) {\n      coverLetter = content[0].text || \"\";\n    }\n  } catch(e) {\n    coverLetter = \"\";\n  }\n\n  coverLetter = coverLetter.replace(/\\[Your Name\\]/g, \"Nibras\");\n\n  if (coverLetter.length > 1900) {\n    coverLetter = coverLetter.substring(0, 1900) + \"...\";\n  }\n\n  const notionPageId = promptItem.json?.notionPageId || \"\";\n\n  // Only proceed if cover letter has real content\n  if (coverLetter.length > 50 && notionPageId) {\n    results.push({\n      json: {\n        notionPageId: notionPageId,\n        coverLetter: coverLetter\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "fe611b5d-765e-49a2-806b-83a6653131e0",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $json.notionPageId }}",
+          "mode": "id"
+        },
+        "simple": false,
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Cover Letter|rich_text",
+              "richText": true,
+              "text": {
+                "text": [
+                  {
+                    "text": "={{ $json.coverLetter }}",
+                    "annotationUi": {}
+                  }
+                ]
+              }
+            },
+            {
+              "key": "Cover Letter Status|status",
+              "statusValue": "Cover Letter Ready"
+            },
+            {
+              "key": "Cover Letter At|date",
+              "date": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "95e96e77-1330-4a81-88dd-6351876498ed",
+      "name": "Update a database page",
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many database pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many database pages": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Update a database page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f3e9b4b9-e6c6-41e4-9264-f6cf8e4aa992",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fcb5b583f8243d143972c11d3c7fa9576cb9dcd125227be36f39751c260181b1"
+  },
+  "id": "VCG4OkRhHBF5ZRME",
+  "tags": []
+}

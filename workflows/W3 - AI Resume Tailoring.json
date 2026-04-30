@@ -1,0 +1,210 @@
+{
+  "name": "W3 - AI Resume Tailoring",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        80
+      ],
+      "id": "68269948-dafd-4834-b4f0-4c9f4a142775",
+      "name": "Daily Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "3399bdd8-248c-80fb-be10-f701e8c3d55f",
+          "mode": "list",
+          "cachedResultName": "Jobs",
+          "cachedResultUrl": "https://www.notion.so/3399bdd8248c80fbbe10f701e8c3d55f"
+        },
+        "limit": 20,
+        "simple": false,
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "key": "AI Verdict|select",
+              "condition": "equals",
+              "selectValue": "Good Fit"
+            },
+            {
+              "key": "Tailored Resume|rich_text",
+              "condition": "is_empty"
+            },
+            {
+              "key": "Resume Status|status",
+              "condition": "does_not_equal",
+              "statusValue": "Tailored"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        80
+      ],
+      "id": "294c2e14-0024-4566-b27d-59cdfedb9905",
+      "name": "Fetch Good Fit Jobs",
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        448,
+        80
+      ],
+      "id": "4db9ab93-2802-42ba-8ff2-f607e85c9266",
+      "name": "Loop Each Job"
+    },
+    {
+      "parameters": {
+        "jsCode": "const currentItem = $input.all()[0].json;\nconst pageId = String(currentItem.id);\nconst props = currentItem.properties;\n\nconst jobTitle = props['Job Title']?.title?.[0]?.plain_text || 'Not provided';\nconst company = props['Company']?.rich_text?.[0]?.plain_text || 'Not provided';\nconst location = props['Location']?.rich_text?.[0]?.plain_text || 'Not provided';\nconst jobDesc = (props['Job Description']?.rich_text?.[0]?.plain_text || 'Not provided').slice(0, 1200);\nconst aiScore = props['AI Score']?.number || 0;\nconst verdict = props['AI Verdict']?.select?.name || 'Good Fit';\n\nconst resume = `CANDIDATE: Nibras Hassan V M | CCNA Certified | Dubai, UAE\n\nCURRENT ROLE: IT Admin Intern, AVANI Ibn Battuta Dubai (Sep 2025 - Present)\n- Provided L1 IT and network support, resolving LAN/Wi-Fi connectivity, access, and hardware issues\n- Supported enterprise Wi-Fi infrastructure (Aruba Wi-Fi Controller, Airangel HSIA), monitoring access points and resolving connectivity incidents\n- Administered Active Directory, managing user accounts, group policies, and access permissions\n- Assisted in network documentation, asset tracking, and incident records for audit readiness\n- Performed backup operations and basic server health checks to ensure system availability\n- Supported Microsoft 365 user provisioning, mailbox access, and basic troubleshooting\n\nPREVIOUS: System Admin, Axtella Properties, Bahrain (Aug 2024 - Jul 2025)\n- Installing, configuring, and upgrading hardware and software\n- Troubleshooting and maintaining CCTV, wired and wireless connections ensuring reliable connectivity\n- Managing inventory of hardware and software assets\n\nPREVIOUS: Network Support Engineer, Golden Telecom, Riyadh, Saudi Arabia (May 2023 - Jun 2024)\n- Configured and optimized routers and switches, reducing latency\n- Worked with NOC teams to troubleshoot issues ensuring SLA compliance\n- Adhered to standardized escalation processes, improving incident resolution time\n- Conducted hands-on training on router security and best practices\n\nEDUCATION: B.Tech Electrical and Electronics Engineering, PRIST University (2022)\n\nCERTIFICATIONS: CCNA (Cisco ID: CSCO14897563, valid till Apr 2028), Wireshark (Udemy), Active Directory Administrator (Server Academy)\n\nSKILLS:\n- Networking: TCP/IP, OSI, VLANs, NAT, DHCP, DNS, STP, QoS\n- Routing: Static and Dynamic Routing, IPv6, subnetting (VLSM/CIDR)\n- Tools: Wireshark, Cisco Packet Tracer, PuTTY, Microsoft 365, Active Directory, Aruba Wi-Fi Controller\n- Languages: English, Hindi, Arabic, Malayalam\n- Emirates ID valid, based in Dubai`;\n\nconst result = {\n  pageId: pageId,\n  tailored_resume: 'Not generated yet'\n};\n\ntry {\n  const response = await this.helpers.httpRequest({\n    method: 'POST',\n    url: 'https://api.anthropic.com/v1/messages',\n    headers: {\n      'x-api-key': 'YOUR_ANTHROPIC_API_KEY',\n      'anthropic-version': '2023-06-01',\n      'content-type': 'application/json'\n    },\n    body: {\n      model: 'claude-haiku-4-5-20251001',\n      max_tokens: 800,\n      system: 'You are an expert resume writer specializing in IT and networking roles in the UAE market. You tailor resumes to specific job descriptions. Be concise, ATS-friendly, and use strong action verbs. Never fabricate experience — only reframe what exists.',\n      messages: [{\n        role: 'user',\n        content: 'Tailor this candidate resume for the job below. Return ONLY the tailored content in this exact format with no extra commentary:\\n\\nSUMMARY: [2-sentence tailored professional summary]\\n\\nKEY SKILLS: [comma-separated list of 8-10 skills matching this job]\\n\\nTAILORED BULLETS:\\n- [rewritten bullet 1 most relevant to this job]\\n- [rewritten bullet 2]\\n- [rewritten bullet 3]\\n- [rewritten bullet 4]\\n- [rewritten bullet 5]\\n\\nGAP NOTE: [one sentence on any gap between candidate and job requirements]\\n\\n---JOB---\\nTitle: ' + jobTitle + '\\nCompany: ' + company + '\\nLocation: ' + location + '\\nDescription: ' + jobDesc + '\\n\\n---CANDIDATE RESUME---\\n' + resume\n      }]\n    },\n    json: true\n  });\n\n  const raw = String(response && response.content && response.content[0] ? response.content[0].text : 'Error getting response');\n  result.tailored_resume = raw;\n\n} catch (e) {\n  result.tailored_resume = 'Error: ' + String(e && e.message ? e.message : e).slice(0, 200);\n}\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "18d86f42-b1a5-499c-b0dd-136bb6d697c0",
+      "name": "Claude - Tailor Job"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $json.pageId }}",
+          "mode": "id"
+        },
+        "simple": false,
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Tailored Resume|rich_text",
+              "textContent": "={{ $json.tailored_resume }}"
+            },
+            {
+              "key": "Resume Status|status",
+              "statusValue": "Tailored"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        80
+      ],
+      "id": "40fa7737-d903-4b2e-b6be-9a0d1719e166",
+      "name": "Save to Notion",
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Good Fit Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Good Fit Jobs": {
+      "main": [
+        [
+          {
+            "node": "Loop Each Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Each Job": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Claude - Tailor Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude - Tailor Job": {
+      "main": [
+        [
+          {
+            "node": "Save to Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Notion": {
+      "main": [
+        [
+          {
+            "node": "Loop Each Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f8e0e05f-01d1-4e16-a609-a76bd6c12712",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fcb5b583f8243d143972c11d3c7fa9576cb9dcd125227be36f39751c260181b1"
+  },
+  "id": "sP2Ch8NAazTmVpBZ",
+  "tags": []
+}

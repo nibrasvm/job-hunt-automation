@@ -1,0 +1,495 @@
+{
+  "name": "W6-Email Outreach",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        176
+      ],
+      "id": "2caab3f7-77b2-4b5d-9aa2-0456d5155482",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "3399bdd8-248c-80fb-be10-f701e8c3d55f",
+          "mode": "id"
+        },
+        "returnAll": "={{ true }}",
+        "simple": false,
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "key": "Outreach Status|status",
+              "condition": "equals",
+              "statusValue": "Ready"
+            },
+            {
+              "key": "Outreach Sent|checkbox",
+              "condition": "equals"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        176
+      ],
+      "id": "905be3cb-de88-4a2c-9e13-2690f93eb9d0",
+      "name": "Get many database pages",
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        448,
+        176
+      ],
+      "id": "371809c5-f748-4fc9-a7c0-49d33bea2ad1",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"max_tokens\": 1000,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a professional job seeker writing a cold outreach email to a recruiter.\\n\\nRecruiter Name: {{ $json.recruiterName }}\\nCompany: {{ $json.company }}\\nJob Title: {{ $json.jobTitle }}\\nCover Letter (for context): {{ $json.coverLetter }}\\n\\nWrite a short, personalized cold outreach email. Requirements:\\n- Start the body with ONLY: Dear [First Name], (extract first name from Recruiter Name)\\n- After the salutation leave exactly two blank lines before the first paragraph\\n- 3-4 short paragraphs, under 180 words total (excluding salutation)\\n- Reference the specific role and company naturally\\n- Mention you have a tailored cover letter ready to share\\n- Warm and professional tone\\n- Compelling subject line\\n- End with: Best regards,\\\\nNibras\\n\\nYou MUST respond with a raw JSON object only. Do NOT use markdown. Do NOT use backticks. The very first character must be { and the last must be }.\\n{\\\"subject\\\": \\\"...\\\", \\\"body\\\": \\\"Dear [First Name],\\\\n\\\\n\\\\nParagraph one...\\\"}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1136,
+        0
+      ],
+      "id": "70d1d436-1d5f-4e93-9aab-c383dc9c3dbf",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "vYkaDZLWHO1lkrHj",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.recruiterEmail }}",
+        "subject": "={{ $json.emailSubject }}",
+        "emailType": "text",
+        "message": "={{ $json.emailBody }}",
+        "options": {
+          "bccList": "nibrasvm@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1584,
+        0
+      ],
+      "id": "a0b351b2-a959-4b8e-9d69-72e5256f0cb9",
+      "name": "Send a message",
+      "webhookId": "882da522-120e-49c2-8e31-d184c0d458ff",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gtkDmWu3ecC6nIq9",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $('Loop Over Items').item.json.id }}",
+          "mode": "id"
+        },
+        "simple": false,
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Outreach Status|status",
+              "statusValue": "Email Sent"
+            },
+            {
+              "key": "Outreach Date|date",
+              "date": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1808,
+        0
+      ],
+      "id": "a0e77567-b93c-482a-800d-37e120327d1f",
+      "name": "Update a database page",
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2016,
+        192
+      ],
+      "id": "8ab57d06-bf85-4ef7-adf7-3c3fd6b1c681",
+      "name": "Wait",
+      "webhookId": "52a05721-a646-4d66-aa65-89d31e276801"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "de3b9935-1aa0-4725-a162-ebc61fdbd299",
+              "name": "emailSubject",
+              "value": "={{ JSON.parse($json.content[0].text.trim()).subject ?? 'Outreach from Nibras' }}",
+              "type": "string"
+            },
+            {
+              "id": "1700513a-9244-4669-8504-d7d3c4ede016",
+              "name": "emailBody",
+              "value": "={{ JSON.parse($json.content[0].text.trim()).body ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a48b4ba9-11ac-4add-810b-8337a212370f",
+              "name": "recruiterEmail",
+              "value": "={{ $('Get many database pages').item.json.properties['Recruiter Email'].email }}",
+              "type": "string"
+            },
+            {
+              "id": "e1830fb4-5c60-466e-872a-30b9644a1048",
+              "name": "notionPageId",
+              "value": "={{ $('Get many database pages').item.json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1360,
+        0
+      ],
+      "id": "9ec065ae-3f55-4069-bfa6-a67401a17c17",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "208fe7d2-f8b7-4854-a5dc-25abb544023e",
+              "leftValue": "={{ $json.properties['Recruiter Email'].email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        96
+      ],
+      "id": "d087e891-24f7-4876-a401-d23be4458e9e",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $('Loop Over Items').item.json.id }}",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Outreach Status|status",
+              "statusValue": "Not Ready"
+            },
+            {
+              "key": "Outreach Date|date",
+              "date": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1376,
+        192
+      ],
+      "id": "3fc03ec8-78ea-404f-bb3e-7f6ac5977dde",
+      "name": "Update a database page1",
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "52359ff4-dfcd-4416-880f-0564dc4b1842",
+              "name": "recruiterName",
+              "value": "={{ $json.properties['Recruiter Name'].rich_text[0]?.plain_text?.replace(/\\n/g, ' ').replace(/\"/g, '') ?? 'Hiring Manager' }}",
+              "type": "string"
+            },
+            {
+              "id": "3c8eef56-be68-4d67-86c5-7dbed4209c72",
+              "name": "company",
+              "value": "={{ $json.properties['Company'].rich_text[0]?.plain_text?.replace(/\\n/g, ' ').replace(/\"/g, '') ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "d485268e-aaa8-4223-901f-e76a8f248c99",
+              "name": "jobTitle",
+              "value": "={{ $json.properties['Job Title'].title[0]?.plain_text?.replace(/\\n/g, ' ').replace(/\"/g, '') ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "79117e34-4082-40eb-a5e7-dfbdedf0eb5d",
+              "name": "coverLetter",
+              "value": "={{ $json.properties['Cover Letter'].rich_text[0]?.plain_text?.replace(/\\n/g, ' ').replace(/\"/g, '') ?? 'Available on request' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        912,
+        0
+      ],
+      "id": "d7c5b958-d4b4-4b40-a4cb-f26e18b3f6ec",
+      "name": "Edit Fields1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many database pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many database pages": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Update a database page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a database page": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update a database page1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a database page1": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "36170a2b-fd4b-43ab-bbae-79eed79c7a13",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fcb5b583f8243d143972c11d3c7fa9576cb9dcd125227be36f39751c260181b1"
+  },
+  "id": "6hngkbaE74g8bEXu",
+  "tags": []
+}

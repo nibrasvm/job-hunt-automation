@@ -1,0 +1,447 @@
+{
+  "name": "W7 — Follow-up tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 11
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        -16
+      ],
+      "id": "4f9fde56-01da-4ee0-b65d-4758f59e6c65",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "3399bdd8-248c-80fb-be10-f701e8c3d55f",
+          "mode": "id"
+        },
+        "returnAll": true,
+        "simple": false,
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "key": "Outreach Status|status",
+              "condition": "equals",
+              "statusValue": "Email Sent"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        -16
+      ],
+      "id": "dd25b7fa-71c6-476e-9e9e-8b36aa784bdd",
+      "name": "Get many database pages",
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        448,
+        -16
+      ],
+      "id": "bf3e71e0-8036-4195-9e2c-bbff35dd9421",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a48f480a-10a5-4759-8e88-6bacd1a18e55",
+              "leftValue": "=  {{ $json.properties['Outreach Date'].date.start }}\n\n",
+              "rightValue": "={{ $now.minus({days: 5}).toISODate() }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "before"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        0
+      ],
+      "id": "5af42bbf-09cd-40df-b90d-1ea9e9549869",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "821ea3f1-be1a-44ed-b635-4d6221e014f5",
+              "name": "notionPageId",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "7e5918a8-5cf5-4661-a35c-87c04c81ed21",
+              "name": "recruiterEmail",
+              "value": "={{ $json.properties['Recruiter Email'].email }}",
+              "type": "string"
+            },
+            {
+              "id": "f379cbad-5bcc-4fa8-a070-c06be5c0ada4",
+              "name": "recruiterName",
+              "value": "={{ $json.properties['Recruiter Name'].rich_text[0]?.plain_text ?? 'Hiring Team' }}",
+              "type": "string"
+            },
+            {
+              "id": "4c570216-61f4-40c7-9a95-f844bcc67fbd",
+              "name": "jobTitle",
+              "value": "={{ $json.properties['Job Title'].title[0]?.plain_text ?? 'the position' }}",
+              "type": "string"
+            },
+            {
+              "id": "ac7acb67-dda3-48b9-b0a0-371242f90a1e",
+              "name": "company",
+              "value": "={{ $json.properties['Company Name'].rich_text[0]?.plain_text ?? 'your company' }}",
+              "type": "string"
+            },
+            {
+              "id": "7a3d2481-5df6-4b53-a241-67eced4f549e",
+              "name": "outreach_date",
+              "value": "={{ $json.properties['Outreach Date'].date.start }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        896,
+        0
+      ],
+      "id": "404732f7-f9e1-4eb4-9b3d-df17e9a14efa",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"max_tokens\": 400,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"={{ 'You are a professional job applicant writing a follow-up email. Recruiter: ' + ($json.recruiterName ?? 'Hiring Team') + '. Job: ' + ($json.jobTitle ?? 'the role') + '. Company: ' + ($json.company ?? 'your company') + '. Original outreach sent: ' + $json.outreach_date + '. Write a polite follow-up email. Format the body exactly as: start with Dear [first name only], then two blank lines, then one opening sentence, then two blank lines, then 1-2 sentences of follow-up, then two blank lines, then a direct question asking for a status update. Return ONLY valid JSON with keys subject and body. No markdown, no backticks, no closing pleasantries. JSON only.' }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "92a76d67-782f-4729-b637-07837bb2b859",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "vYkaDZLWHO1lkrHj",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "59b82f46-939c-4549-8deb-869be5f44625",
+              "name": "follow_up_subject",
+              "value": "={{ JSON.parse($json.content[0].text.match(/\\{[\\s\\S]*\\}/)[0]).subject.trim() }}\n",
+              "type": "string"
+            },
+            {
+              "id": "807ee89e-82ba-4ff7-928a-92a2e6218a7d",
+              "name": "follow_up_body",
+              "value": "={{ JSON.parse($json.content[0].text.match(/\\{[\\s\\S]*\\}/)[0]).body.trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "41f99783-47aa-45a0-bdb6-5d70fc59895d",
+              "name": "notionPageId",
+              "value": "={{ $('Edit Fields').first().json.notionPageId.trim() }}\n",
+              "type": "string"
+            },
+            {
+              "id": "5321a2f4-7f0a-4b0b-be9d-f02971c056f1",
+              "name": "recruiterEmail",
+              "value": "={{ $('Edit Fields').first().json.recruiterEmail.trim() }}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "aa40c49e-0e50-44ad-b0d1-fb62f90d6053",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.recruiterEmail }}",
+        "subject": "={{ $json.follow_up_subject }}",
+        "emailType": "text",
+        "message": "={{ $json.follow_up_body }}",
+        "options": {
+          "bccList": "nibrasvm@gmail.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1568,
+        0
+      ],
+      "id": "4977877e-a6f3-41b8-ac2c-2fe14422cb4d",
+      "name": "Send a message",
+      "webhookId": "2f304934-9e48-4c03-9af1-9ddbaf2460d8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gtkDmWu3ecC6nIq9",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $('Edit Fields1').first().json.notionPageId }}",
+          "mode": "id"
+        },
+        "simple": false,
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Outreach Status|status",
+              "statusValue": "Followed Up"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1792,
+        0
+      ],
+      "id": "66b085a1-1e67-4c23-baae-c71a0e856720",
+      "name": "Update a database page",
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2016,
+        80
+      ],
+      "id": "62bde583-e3e1-426d-8caa-94c400b00e3d",
+      "name": "Wait",
+      "webhookId": "354db48a-5a1d-45aa-9a6f-25d47cc37cd8"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many database pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many database pages": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Update a database page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a database page": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f91ba4b0-e921-48ad-8858-8f9888854d1b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fcb5b583f8243d143972c11d3c7fa9576cb9dcd125227be36f39751c260181b1"
+  },
+  "id": "jkhDNf4s7qEuzffB",
+  "tags": []
+}

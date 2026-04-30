@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "url": "https://serpapi.com/search.json?engine=google_jobs&q=NOC+Engineer&location=Dubai,+United+Arab+Emirates&api_key=9e358ef4db1b117776a5c37f7dd79dff427a7cf2e341c96576a1d284f8932ad7",
+        "url": "https://serpapi.com/search.json?engine=google_jobs&q=NOC+Engineer&location=Dubai,+United+Arab+Emirates&api_key=YOUR_SERPAPI_KEY",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -36,7 +36,7 @@
     },
     {
       "parameters": {
-        "url": "https://serpapi.com/search.json?engine=google_jobs&q=Network+Support+Engineer&location=Dubai,+United+Arab+Emirates&api_key=9e358ef4db1b117776a5c37f7dd79dff427a7cf2e341c96576a1d284f8932ad7",
+        "url": "https://serpapi.com/search.json?engine=google_jobs&q=Network+Support+Engineer&location=Dubai,+United+Arab+Emirates&api_key=YOUR_SERPAPI_KEY",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -183,7 +183,7 @@
     },
     {
       "parameters": {
-        "url": "https://serpapi.com/search.json?engine=google_jobs&q=IT+Support+Engineer&location=Dubai,+United+Arab+Emirates&api_key=9e358ef4db1b117776a5c37f7dd79dff427a7cf2e341c96576a1d284f8932ad7",
+        "url": "https://serpapi.com/search.json?engine=google_jobs&q=IT+Support+Engineer&location=Dubai,+United+Arab+Emirates&api_key=YOUR_SERPAPI_KEY",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
