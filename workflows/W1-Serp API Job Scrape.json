@@ -1,0 +1,436 @@
+{
+  "name": "Serp API Job Scrape",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        32
+      ],
+      "id": "b8fc9d60-29d5-4081-aae8-2e6f6661308b",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json?engine=google_jobs&q=NOC+Engineer&location=Dubai,+United+Arab+Emirates&api_key=9e358ef4db1b117776a5c37f7dd79dff427a7cf2e341c96576a1d284f8932ad7",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        -160
+      ],
+      "id": "e0362c2d-0543-4c4b-b9b2-898d1bfa690a",
+      "name": "HTTP Request - NOC Engineer"
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json?engine=google_jobs&q=Network+Support+Engineer&location=Dubai,+United+Arab+Emirates&api_key=9e358ef4db1b117776a5c37f7dd79dff427a7cf2e341c96576a1d284f8932ad7",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        32
+      ],
+      "id": "a2a9f415-ec05-4717-a72f-3652eb84da39",
+      "name": "HTTP Request-Network Support Engineer"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        448,
+        16
+      ],
+      "id": "e236a0b6-b923-45a2-b860-01e78b09cae5",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "jobs_results",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        672,
+        32
+      ],
+      "id": "1ae0ad19-3e02-488e-a2ec-0655781bbbff",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "3399bdd8-248c-80fb-be10-f701e8c3d55f",
+          "mode": "list",
+          "cachedResultName": "Jobs",
+          "cachedResultUrl": "https://www.notion.so/3399bdd8248c80fbbe10f701e8c3d55f"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Job Title|title",
+              "title": "={{ $json.jobTitle }}"
+            },
+            {
+              "key": "Company|rich_text",
+              "textContent": "={{ $json.jobCompany }}"
+            },
+            {
+              "key": "Location|rich_text",
+              "textContent": "={{ $json.jobLocation }}"
+            },
+            {
+              "key": "Job Link|url",
+              "urlValue": "={{ $('Split Out').first().json.share_link }}"
+            },
+            {
+              "key": "Job Description|rich_text",
+              "textContent": "={{ $json.jobDescription }}"
+            },
+            {
+              "key": "Source|select",
+              "selectValue": "=SerpAPI"
+            },
+            {
+              "key": "Date Added|date",
+              "date": "={{ $now }}"
+            },
+            {
+              "key": "Status|select",
+              "selectValue": "=New"
+            },
+            {
+              "key": "Job Link|url",
+              "urlValue": "={{ $json.jobLink }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1568,
+        32
+      ],
+      "id": "57e510f6-248b-4cc7-a63c-fda669571263",
+      "name": "Create a database page",
+      "executeOnce": false,
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "jobs",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1792,
+        32
+      ],
+      "id": "fe4d7471-fc98-4ae6-8c4b-0452696ac2b4",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "sendTo": "nibrasvm@gmail.com",
+        "subject": "=🆕 New Jobs Found – {{ $now.toFormat('dd LLL yyyy') }}",
+        "message": "=<h2 style=\"color:#333\">New Jobs Found Today</h2>\n<p>The following new jobs were added to your Notion database:</p>\n\n{{ $json.jobs.map(j => `\n<div style=\"margin-bottom:16px;padding:14px;border:1px solid #ddd;border-radius:8px;font-family:sans-serif\">\n  <h3 style=\"margin:0 0 6px 0\">${j.name}</h3>\n  <p style=\"margin:2px 0\"><strong>Company:</strong> ${j.property_company || 'N/A'}</p>\n  <p style=\"margin:2px 0\"><strong>Location:</strong> ${j.property_location || 'N/A'}</p>\n  <p style=\"margin:2px 0\"><strong>Status:</strong> ${j.property_status}</p>\n  <p style=\"margin:8px 0 0 0\"><a href=\"${j.url}\">View in Notion →</a></p>\n</div>\n`).join('') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2016,
+        32
+      ],
+      "id": "4516658c-da8e-46de-90eb-4f567cb29861",
+      "name": "Send a message",
+      "webhookId": "4bad58aa-1bef-482d-943e-ec16c03c2af6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gtkDmWu3ecC6nIq9",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json?engine=google_jobs&q=IT+Support+Engineer&location=Dubai,+United+Arab+Emirates&api_key=9e358ef4db1b117776a5c37f7dd79dff427a7cf2e341c96576a1d284f8932ad7",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        224
+      ],
+      "id": "1fbf1043-97df-492a-aafc-c6ec96a105aa",
+      "name": "HTTP Request-IT Support Engineer"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "25e22d03-d358-4626-aac8-7bbd7dd5a928",
+              "name": "jobTitle",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "8b8eac23-487e-4b23-82e6-18d3c87932d9",
+              "name": "jobCompany",
+              "value": "={{ $json.company_name }}",
+              "type": "string"
+            },
+            {
+              "id": "083976d9-212b-40b6-b4a2-ea64fd2f28e7",
+              "name": "jobLocation",
+              "value": "={{ $json.location }}",
+              "type": "string"
+            },
+            {
+              "id": "d45ce935-1c14-4b45-b75a-3e9719f02146",
+              "name": "jobLink",
+              "value": "={{ $json.share_link }}",
+              "type": "string"
+            },
+            {
+              "id": "62065cb3-8b5d-4f0a-a6b8-178c73708abd",
+              "name": "jobDescription",
+              "value": "={{ $json.description.substring(0, 1999) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        896,
+        32
+      ],
+      "id": "f78e2ed5-7a94-4074-b3b9-bb45cca04354",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "const notionItems = $('Notion - Get All Existing Jobs').all();\n\n// Extract existing links with Simplify OFF\nconst existingLinks = new Set(\n  notionItems.map(item => {\n    const props = item.json?.properties;\n    return props?.['Job Link']?.url || null;\n  }).filter(Boolean)\n);\n\n// Get all jobs from Edit Fields\nconst allJobs = $('Edit Fields').all();\n\n// Filter new jobs only\nconst newJobs = allJobs.filter(job => {\n  const link = job.json?.jobLink;\n  return link && !existingLinks.has(link);\n});\n\nreturn newJobs;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        32
+      ],
+      "id": "32adf670-cb55-4201-9627-a14f2d56445c",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "3399bdd8-248c-80fb-be10-f701e8c3d55f",
+          "mode": "list",
+          "cachedResultName": "Jobs",
+          "cachedResultUrl": "https://www.notion.so/3399bdd8248c80fbbe10f701e8c3d55f"
+        },
+        "returnAll": true,
+        "simple": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        32
+      ],
+      "id": "73939dce-6ef7-42d3-9576-9a99c516e5f1",
+      "name": "Notion - Get All Existing Jobs",
+      "executeOnce": true,
+      "credentials": {
+        "notionApi": {
+          "id": "LU3vC29KAXOorisn",
+          "name": "Notion account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - NOC Engineer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request-Network Support Engineer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request-IT Support Engineer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - NOC Engineer": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request-Network Support Engineer": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a database page": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request-IT Support Engineer": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Notion - Get All Existing Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Create a database page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion - Get All Existing Jobs": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8183ad42-6311-4839-81e6-0c15ed3297eb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fcb5b583f8243d143972c11d3c7fa9576cb9dcd125227be36f39751c260181b1"
+  },
+  "id": "jnxdJNNVS6F2L86W",
+  "tags": []
+}
