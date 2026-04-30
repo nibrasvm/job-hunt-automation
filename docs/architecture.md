@@ -105,7 +105,7 @@ and recruiting keywords to surface the most relevant contact.
 
 **Gmail — Outreach Delivery**
 Used for both the daily job digest (W1) and recruiter outreach (W6, W7).
-All outbound emails are BCC'd to nibrasvm@gmail.com for personal tracking.
+All outbound emails are BCC'd to a personal address for personal tracking.
 W6 and W7 include a 30-second wait between sends to avoid triggering
 Gmail's rate limits.
 
