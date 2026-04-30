@@ -73,6 +73,7 @@ W7 — Follow-up Tracker (11:00 AM)
 ↓ reads:  Outreach Status = Email Sent, Outreach Date > 5 days ago
 ↓ writes: sends Gmail follow-up
 ↓ sets:   Outreach Status = Followed Up
+
 ---
 
 ## Tool Selection Rationale
