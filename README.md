@@ -88,8 +88,8 @@ See [`docs/setup-guide.md`](docs/setup-guide.md) for full instructions.
 
 ## 📎 Related
 
-- 🔗 [(https://www.linkedin.com/posts/nibrasvm_n8n-automation-jobsearch-ugcPost-7449015963473289216-T9xO?utm_source=share&utm_medium=member_desktop&rcm=ACoAAC-69AMBy61gH9o8LTtjB4wG7ojANrWNego)](#)
-- 🔗 [https://www.linkedin.com/posts/nibrasvm_ai-automation-n8n-ugcPost-7449309047155146752-DT-5?utm_source=share&utm_medium=member_desktop&rcm=ACoAAC-69AMBy61gH9o8LTtjB4wG7ojANrWNego](#)
+- 🔗 [LinkedIn Post — Job Scraper Workflow](https://www.linkedin.com/posts/nibrasvm_n8n-automation-jobsearch-ugcPost-7449015963473289216-T9xO?utm_source=share&utm_medium=member_desktop&rcm=ACoAAC-69AMBy61gH9o8LTtjB4wG7ojANrWNego)
+- 🔗 [LinkedIn Post — AI Scoring Workflow](https://www.linkedin.com/posts/nibrasvm_ai-automation-n8n-ugcPost-7449309047155146752-DT-5?utm_source=share&utm_medium=member_desktop&rcm=ACoAAC-69AMBy61gH9o8LTtjB4wG7ojANrWNego)
 
 ---
 
