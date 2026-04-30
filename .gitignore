@@ -1,0 +1,12 @@
+# Environment and secrets
+.env
+*.env
+secrets.json
+config.local.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
